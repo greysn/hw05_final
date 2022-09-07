@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %} {{ group.title }} {% endblock %}
+{% block content%}
+<h1>{{ group.title }}</h1>
+<p>
+  {{ group.description }}
+</p> 
+  {% for post in posts %}
+  <article>
+  <ul>
+    <li>
+      Автор: {{ post.author.get_full_name }}
+    </li>
+    <li>
+      Дата публикации: {{ post.pub_date|date:"d E Y" }}
+    </li>
+  </ul>
+  <article>
+  <p>{{ post.text }}</p>    
+  {% if not forloop.last %}<hr>{% endif %}
+{% endfor %}
+{% endblock content%}
