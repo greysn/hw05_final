@@ -225,3 +225,12 @@ class PaginatorTests(TestCase):
                 response = (self.authorized_client.get(address + '?page=2'))
                 self.assertEqual(len(response.context['page_obj']),
                                  SECOND_PAGE_POST, danger_message)
+
+
+def test_cache(self):
+    self.client.get(reverse('posts:index'))
+
+    self.assertTemplateNotUsed(
+        self.client.get(reverse('posts^index')),
+        'post/index.html'
+    )

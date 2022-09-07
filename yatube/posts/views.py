@@ -70,7 +70,7 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST)
+    form = PostForm(request.POST, request.FILES or None)
     template = 'posts/create_post.html'
     if form.is_valid():
         post = form.save(commit=False)
@@ -130,7 +130,7 @@ def follow_index(request):
     authors = user.follower.values_list('author', flat=True)
     posts_list = Post.objects.filter(author__id__in=authors)
 
-    paginator = Paginator(posts_list, 10)
+    paginator = Paginator(posts_list, LIST_LENGHT)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
 
