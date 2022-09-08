@@ -22,11 +22,8 @@ class PostURLTests(TestCase):
         )
 
     def setUp(self):
-        # Создаем неавторизованный клиент
         self.guest_client = Client()
-        # Создаем второй клиент
         self.authorized_client = Client()
-        # Авторизуем пользователя
         self.authorized_client.force_login(PostURLTests.post.author)
         self.public_pages = ['/',
                              f'/group/{self.post.group.slug}/',

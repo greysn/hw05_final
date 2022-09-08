@@ -9,7 +9,9 @@ from django.urls import reverse
 from django.views.decorators.cache import cache_page
 
 
-@cache_page(20, key_prefix='index_page')
+cache_page(20, key_prefix='index_page')
+
+
 def index(request):
     template = 'posts/index.html'
     post_list = Post.objects.select_related()
@@ -70,13 +72,14 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST, request.FILES or None)
+    form = PostForm(request.POST, files=request.FILES or None)
     template = 'posts/create_post.html'
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
         post.save()
         return redirect('posts:profile', username=request.user.username)
+    form = PostForm(request.POST, files=request.FILES or None)
     context = {
         'form': form
     }

@@ -1,6 +1,7 @@
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Group, Post, User
+from posts.models import Comment, Group, Post, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from posts.forms import PostForm
 from posts.settings import ALL_PAGES, LIST_LENGHT, SECOND_PAGE_POST
 
@@ -17,12 +18,25 @@ class PostsViewsTest(TestCase):
             slug='test_slug',
             description='Тестовое описание',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded_file = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif')
 
         cls.post = Post.objects.create(
             author=cls.author,
             text='Тестовый текст',
-            group=cls.group
-        )
+            group=cls.group,
+            image=cls.uploaded_file)
+
         cls.group1 = Group.objects.create(
             title='Тестовая группа1',
             slug='test_slug1',
@@ -177,6 +191,16 @@ class PostsViewsTest(TestCase):
                 post = response.context['page_obj'][-1]
                 self.assertEqual(post.pk, self.post.pk, danger_message)
 
+    def test_post_with_image_correct_context(self):
+        """При выводе поста с картинкой изображение
+        передается в словаре context"""
+        url = '/'
+        response = self.authorized_client.get(url)
+        x1 = response.context.get('page_obj')[1].image.name
+        self.assertEqual(
+            x1[:11] + x1[-4:], 'posts/small.gif'
+        )
+
 
 class PaginatorTests(TestCase):
     @classmethod
@@ -234,3 +258,17 @@ def test_cache(self):
         self.client.get(reverse('posts^index')),
         'post/index.html'
     )
+
+
+def test_comment_to_post_detail(self):
+    """Комментарий появляется на странице поста."""
+    comments_count = Comment.objects.count()
+    comment_new = Comment.objects.create(
+        post=self.post,
+        author=self.user,
+        text='Тестовый комментарий',
+    )
+    self.assertEqual(Comment.objects.count(), comments_count + 1)
+    self.assertEqual(
+        Comment.objects.first().text,
+        comment_new.text,)
