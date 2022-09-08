@@ -250,13 +250,6 @@ class PaginatorTests(TestCase):
                 self.assertEqual(len(response.context['page_obj']),
                                  SECOND_PAGE_POST, danger_message)
 
-    def test_cache(self):
-        self.client.get(reverse('posts:index'))
-
-        self.assertTemplateNotUsed(
-            self.client.get(reverse('posts^index')),
-            'post/index.html')
-
     def test_comment_to_post_detail(self):
         """Комментарий появляется на странице поста."""
         comments_count = Comment.objects.count()
