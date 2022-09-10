@@ -56,12 +56,6 @@ class PostFormTests(TestCase):
         post = Post.objects.exclude(id=self.post.id).first()
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group, self.group)
-        self.assertTrue(
-            Post.objects.filter(
-                text=form_data['text'],
-                group=form_data['group'],
-            ).exists()
-        )
 
     def test_create_post_guest(self):
         form_data = {
