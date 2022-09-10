@@ -1,8 +1,10 @@
+import os
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Comment, Group, Post, User
+from posts.models import Comment, Group, Post, User, Follow
 from django.core.files.uploadedfile import SimpleUploadedFile
 from posts.forms import PostForm
+from http import HTTPStatus
 from posts.settings import ALL_PAGES, LIST_LENGHT, SECOND_PAGE_POST
 
 
@@ -37,16 +39,11 @@ class PostsViewsTest(TestCase):
             group=cls.group,
             image=cls.uploaded_file)
 
-        cls.group1 = Group.objects.create(
-            title='Тестовая группа1',
-            slug='test_slug1',
-            description='Тестовое описание1'
+        cls.follower = Follow.objects.create(
+            user=cls.user,
+            author=cls.author
         )
-        cls.post1 = Post.objects.create(
-            text='Тестовый текст',
-            group=cls.group1,
-            author=cls.user
-        )
+
         cls.context_test = {
             reverse('posts:index'): 'Главная страница',
             reverse(
@@ -100,6 +97,9 @@ class PostsViewsTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        image_path = cls.post.image.path
+        if image_path and os.path.isfile(image_path):
+            os.remove(image_path)
         super().tearDownClass()
 
     def setUp(self):
@@ -108,6 +108,8 @@ class PostsViewsTest(TestCase):
         self.authorized_client.force_login(PostsViewsTest.post.author)
         self.post_author = Client()
         self.post_author.force_login(self.author)
+        self.user_client = Client()
+        self.user_client.force_login(self.user)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -127,42 +129,39 @@ class PostsViewsTest(TestCase):
         )
         self.assertTemplateNotUsed(response, 'posts/create_post.html')
 
-    def _assert_post_has_attribs(self, post, id, author, group):
-        self.assertEqual(post.id, id)
-        self.assertEqual(post.author, author)
-        self.assertEqual(post.group, group)
+    def _assert_post_has_attribs(self, post):
+        self.assertEqual(post.author, self.author,
+                         'Автор поста не соответствует.')
+        self.assertEqual(post.text, self.post.text,
+                         'Содержимое поста не соответствует.')
+        self.assertEqual(post.group, self.group,
+                         'Группа не соответствует')
 
     def test_index_page_context(self):
         """Шаблон index с правильным контекстом"""
         response = self.authorized_client.get(reverse('posts:index'))
         first_object = response.context['page_obj'][0]
-        post_author = first_object.author.username
-        post_text = first_object.text
-        post_group = first_object.group.title
-        self.assertEqual(post_author, 'testuser')
-        self.assertEqual(post_text, 'Тестовый текст')
-        self.assertEqual(post_group, 'Тестовая группа1')
+        self._assert_post_has_attribs(first_object)
 
     def test_group_list_context(self):
         """Шаблон group_list с правильным контекстом"""
         response = self.authorized_client.get(reverse(
-            'posts:group_list', kwargs={'slug': 'test_slug'})
+            'posts:group_list', kwargs={'slug': self.group.slug})
         )
+        context_group = response.context['group']
+        self.assertTrue(self.group.slug == context_group.slug,
+                        'slug группы не совпадает: '
+                        f'{self.group.slug} - {context_group.slug}')
         post = response.context['page_obj'][0]
-        self.assertEqual(post.author.username, self.post.author.username)
-        self.assertEqual(post.text, 'Тестовый текст')
+        self._assert_post_has_attribs(post)
 
     def test_profile_context(self):
         """Шаблон profile с правильным контекстом"""
         response = self.authorized_client.get(reverse(
-            'posts:profile', kwargs={'username': f'{self.user}'})
+            'posts:profile', kwargs={'username': self.author.username})
         )
         post = response.context['page_obj'][0]
-        self.assertEqual(post.author.username, 'testuser')
-        self.assertEqual(post.text, 'Тестовый текст')
-        self.assertEqual(
-            post.group.title, 'Тестовая группа1'
-        )
+        self._assert_post_has_attribs(post)
 
     def test_create_post_edit_context(self):
         """Шаблон post_edit с правильным контекстом"""
@@ -194,12 +193,46 @@ class PostsViewsTest(TestCase):
     def test_post_with_image_correct_context(self):
         """При выводе поста с картинкой изображение
         передается в словаре context"""
-        url = '/'
+        url = reverse('posts:index')
         response = self.authorized_client.get(url)
-        x1 = response.context.get('page_obj')[1].image.name
+        post = response.context.get('page_obj')[0]
+        image_name = post.image.name.split('/')[-1]
+        self.assertEqual(image_name, self.uploaded_file.name,
+                         'Полученное изображение требует соответствия.')
+        self._assert_post_has_attribs(post)
+
+    def test_follow_index_context(self):
+        """ Проверка ленты подписок """
+        response = self.user_client.get(reverse('posts:follow_index'))
+        first_object = response.context['page_obj'][0]
+        self._assert_post_has_attribs(first_object)
+
+    def test_author_follow(self):
+        """ Проверка возможности подписаться на автора """
+        Follow.objects.filter(user=self.user, author=self.author).delete()
+        old_follow_count = Follow.objects.filter(user=self.user).count()
+        _url = reverse('posts:profile_follow', args=(self.author.username,))
+        response = self.user_client.get(_url)
         self.assertEqual(
-            x1[:11] + x1[-4:], 'posts/small.gif'
-        )
+            response.status_code, HTTPStatus.FOUND,
+            f'Ошибка подписки: {_url} - {self.user}, {self.author}')
+        new_follow_count = Follow.objects.filter(user=self.user).count()
+        self.assertEqual(new_follow_count, old_follow_count + 1,
+                         'Количество подписок не увеличилось: '
+                         f'{old_follow_count} <-> {new_follow_count}')
+
+    def test_author_unfollow(self):
+        """ Проверка возможности отписаться от автора """
+        old_follow_count = Follow.objects.filter(user=self.user).count()
+        _url = reverse('posts:profile_unfollow', args=(self.author.username,))
+        response = self.user_client.get(_url)
+        self.assertEqual(
+            response.status_code, HTTPStatus.FOUND,
+            f'Ошибка отписки: {_url} - {self.user}, {self.author}')
+        new_follow_count = Follow.objects.filter(user=self.user).count()
+        self.assertEqual(new_follow_count, old_follow_count - 1,
+                         'Количество подписок не уменьшилось: '
+                         f'{old_follow_count} <-> {new_follow_count}')
 
 
 class PaginatorTests(TestCase):
@@ -212,7 +245,7 @@ class PaginatorTests(TestCase):
             slug='test_slug',
             description='Тестовое описание',
         )
-        for i in range(0, ALL_PAGES):
+        for i in range(ALL_PAGES):
             cls.post = Post.objects.create(
                 author=cls.user,
                 group=cls.group,
@@ -220,14 +253,10 @@ class PaginatorTests(TestCase):
             )
         cls.paginate_dict = {
             reverse('posts:index'): 'Главная страница',
-            reverse(
-                'posts:group_list',
-                kwargs={'slug': cls.group.slug}
-            ): 'Страница групп',
-            reverse(
-                'posts:profile',
-                kwargs={'username': cls.post.author}
-            ): 'Страница профиля',
+            reverse('posts:group_list',
+                    kwargs={'slug': cls.group.slug}): 'Страница групп',
+            reverse('posts:profile',
+                    kwargs={'username': cls.post.author}): 'Страница профиля'
         }
         cls.authorized_client = Client()
         cls.authorized_client.force_login(cls.user)
@@ -237,7 +266,7 @@ class PaginatorTests(TestCase):
         for address, temp in self.paginate_dict.items():
             with self.subTest(temp=temp):
                 danger_message = f'На странице {temp} не 10 постов'
-                response = (self.authorized_client.get(address))
+                response = self.authorized_client.get(address)
                 self.assertEqual(len(response.context['page_obj']),
                                  LIST_LENGHT, danger_message)
 

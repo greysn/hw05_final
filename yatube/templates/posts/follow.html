@@ -1,13 +1,17 @@
+{% extends 'base.html' %}
+{% block title %} {{ group.title }} {% endblock %}
+{% block content%}
 <div class="col-md-3 mb-3 mt-1">
+  {% for post in page_obj %}
     <div class="card">
       <div class="card-body">
         <div class="h2">
           <!-- Имя автора -->
-          {{ author.get_full_name }}
+          {{ post.author.get_full_name }}
         </div>
         <div class="h3 text-muted">
           <!-- username автора -->
-          <a href="{% url 'posts:profile' author.username %}">@{{ author.username }}</a>
+          <a href="{% url 'posts:profile' post.author.username %}">@{{ post.author.username }}</a>
         </div>
       </div>
       <ul class="list-group list-group-flush">
@@ -20,9 +24,11 @@
         <li class="list-group-item">
           <div class="h6 text-muted">
             <!--Количество записей -->
-            Записей: {{ author.posts.count }}
+            Записей: {{ post.author.posts.count }}
           </div>
         </li>
       </ul>
     </div>
   </div>
+  {% endfor %}
+{% endblock content%}

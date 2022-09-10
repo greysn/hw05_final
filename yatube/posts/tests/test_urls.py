@@ -40,8 +40,8 @@ class PostURLTests(TestCase):
                 response = self.guest_client.get(page1)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_create_post_edit(self):
-        """Cтраница '/posts/<post_id>/edit/' доступна автору."""
+    def test_get_all_pages(self):
+        """Проверка доступности страниц авторизованному пользователю."""
         for page2 in self.all_page:
             with self.subTest(all_page=page2):
                 response = self.authorized_client.get(page2)

@@ -4,23 +4,18 @@ from .forms import PostForm, CommentForm
 from .models import Post, Group, User, Follow
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.views.decorators.cache import cache_page
+# from django.views.decorators.cache import cache_page
 
 
-cache_page(20, key_prefix='index_page')
-
-
+# @cache_page(20, key_prefix='index_page')
 def index(request):
     template = 'posts/index.html'
-    post_list = Post.objects.select_related()
+    post_list = Post.objects.select_related('author', 'group')
     paginator = Paginator(post_list, LIST_LENGHT)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    context = {
-        'page_obj': page_obj,
-    }
+    context = {'page_obj': page_obj}
     return render(request, template, context)
 
 
@@ -131,8 +126,8 @@ def server_error(request):
 def follow_index(request):
     user = request.user
     authors = user.follower.values_list('author', flat=True)
-    posts_list = Post.objects.filter(author__id__in=authors)
-
+    posts_list = Post.objects.filter(
+        author__id__in=authors).select_related('author')
     paginator = Paginator(posts_list, LIST_LENGHT)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -140,7 +135,9 @@ def follow_index(request):
     return render(
         request,
         'posts/follow.html',
-        {'page_obj': page, 'paginator': paginator, "author": user}
+        {
+            'page_obj': page, 'paginator': paginator
+        }
     )
 
 
@@ -150,13 +147,13 @@ def profile_follow(request, username):
     user = request.user
     if author != user:
         Follow.objects.get_or_create(user=user, author=author)
-        return redirect(
-            reverse('posts:profile', args=[username]))
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+    return redirect(
+        reverse('posts:profile', args=[username]))
 
 
 @login_required
 def profile_unfollow(request, username):
     user = request.user
     Follow.objects.get(user=user, author__username=username).delete()
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+    return redirect(
+        reverse('posts:profile', args=[username]))
