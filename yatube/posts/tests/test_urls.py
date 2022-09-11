@@ -31,7 +31,9 @@ class PostURLTests(TestCase):
                              f'/posts/{self.post.id}/']
         self.private_page = [f'/posts/{self.post.id}/edit/',
                              '/create/',
-                             '/follow/'
+                             '/follow/',
+                             f'profile/{self.post.author}/follow/',
+                             f'profile/{self.post.author}/unfollow/'
                              ]
         self.all_page = self.private_page + self.public_pages
 

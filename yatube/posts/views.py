@@ -38,13 +38,21 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     author_posts = author.posts.all()
     post_count = author_posts.count()
+    following = author.following.all()
+    follower = author.follower.all()
+    count_follower = follower.count()
+    count_following = following.count()
     paginator = Paginator(author_posts, LIST_LENGHT)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {
         'author': author,
         'post_count': post_count,
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'count_following': count_following,
+        'count_follower': count_follower,
+        'following': following
+
     }
     return render(request, template, context)
 
