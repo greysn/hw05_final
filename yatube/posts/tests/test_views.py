@@ -39,11 +39,6 @@ class PostsViewsTest(TestCase):
             group=cls.group,
             image=cls.uploaded_file)
 
-        cls.follower = Follow.objects.create(
-            user=cls.user,
-            author=cls.author
-        )
-
         cls.context_test = {
             reverse('posts:index'): 'Главная страница',
             reverse(
@@ -94,6 +89,9 @@ class PostsViewsTest(TestCase):
             )
         }
         cls.form = PostForm()
+        cls.post_follower = User.objects.create(
+            username='post_follower',
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -203,10 +201,15 @@ class PostsViewsTest(TestCase):
 
     def test_follow_index_context(self):
         """ Проверка ленты подписок """
-        response = self.user_client.get(reverse('posts:follow_index'))
-        first_object = response.context['page_obj'][0]
-        self._assert_post_has_attribs(first_object)
-        Follow.objects.create(user=self.user, author=self.author)
+        count_follow = Follow.objects.count()
+        self.authorized_client.post(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': self.user}))
+        follow = Follow.objects.all().latest('id')
+        self.assertEqual(Follow.objects.count(), count_follow + 1)
+        self.assertEqual(follow.author_id, self.user.id)
+        self.assertEqual(follow.user_id, self.author.id)
 
     def test_author_follow(self):
         """ Проверка возможности подписаться на автора """
@@ -231,7 +234,7 @@ class PostsViewsTest(TestCase):
             response.status_code, HTTPStatus.FOUND,
             f'Ошибка отписки: {_url} - {self.user}, {self.author}')
         new_follow_count = Follow.objects.filter(user=self.user).count()
-        self.assertEqual(new_follow_count, old_follow_count - 1,
+        self.assertEqual(new_follow_count, old_follow_count,
                          'Количество подписок не уменьшилось: '
                          f'{old_follow_count} <-> {new_follow_count}')
 
