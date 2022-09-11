@@ -30,7 +30,9 @@ class PostURLTests(TestCase):
                              f'/profile/{self.post.author}/',
                              f'/posts/{self.post.id}/']
         self.private_page = [f'/posts/{self.post.id}/edit/',
-                             '/create/']
+                             '/create/',
+                             '/follow/'
+                             ]
         self.all_page = self.private_page + self.public_pages
 
     def test_url_available_to_any_user(self):

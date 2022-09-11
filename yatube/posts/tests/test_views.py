@@ -206,6 +206,7 @@ class PostsViewsTest(TestCase):
         response = self.user_client.get(reverse('posts:follow_index'))
         first_object = response.context['page_obj'][0]
         self._assert_post_has_attribs(first_object)
+        Follow.objects.create(user=self.user, author=self.author)
 
     def test_author_follow(self):
         """ Проверка возможности подписаться на автора """
