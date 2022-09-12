@@ -33,10 +33,9 @@ class PostURLTests(TestCase):
                              '/create/',
                              '/follow/'
                              ]
-        self.follow_unfollow = [
-                                f'/profile/{self.post.author}/follow/',
+        self.follow_unfollow = [f'/profile/{self.post.author}/follow/',
                                 f'/profile/{self.post.author}/unfollow/'
-                                ]                       
+                                ]
         self.all_page = self.private_page + self.public_pages
 
     def test_url_available_to_any_user(self):
@@ -58,7 +57,7 @@ class PostURLTests(TestCase):
             with self.subTest(follow_unfollow=page3):
                 response = self.authorized_client.get(page3)
                 self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        
+
     def test_Client_post_edit(self):
         """Cтраница '/posts/<post_id>/edit/' не доступна не автору."""
         post_id = self.post.id
